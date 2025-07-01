@@ -1,0 +1,16 @@
+import React, { useState, useEffect } from "react";
+function App() {
+  const [wallets, setWallets] = useState([]);
+  useEffect(() => {
+    fetch("/api/wallets")
+      .then(r => r.json())
+      .then(setWallets);
+  }, []);
+  return (
+    <div>
+      <h1>Tracked Wallets</h1>
+      <ul>{wallets.map(w => <li key={w.id}>{w.address} (chat {w.chat_id})</li>)}</ul>
+    </div>
+  );
+}
+export default App;
