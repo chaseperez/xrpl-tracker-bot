@@ -1,1 +1,1 @@
-web: python backend/bot.py
+web: ls -R && python backend/bot.py
