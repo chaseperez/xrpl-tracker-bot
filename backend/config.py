@@ -1,13 +1,24 @@
 import os
 from dotenv import load_dotenv
-
-
-TELEGRAM_BOT_TOKEN = os.environ.get("8038618967:AAGOKrOAtOdsmYqGiPCV47Z2y19iIVTlQIk")
-TELEGRAM_CHAT_ID = int(os.environ.get("7861907274"))
 load_dotenv()
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("Missing BOT_TOKEN environment variable")
+
+
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+if not TELEGRAM_BOT_TOKEN:
+    raise RuntimeError("❌ TELEGRAM_BOT_TOKEN missing")
+
+chat_id_raw = os.environ.get("TELEGRAM_CHAT_ID")
+if not chat_id_raw:
+    raise RuntimeError("❌ TELEGRAM_CHAT_ID missing")
+
+try:
+    TELEGRAM_CHAT_ID = int(chat_id_raw)
+except ValueError:
+    raise RuntimeError("❌ TELEGRAM_CHAT_ID must be an integer")
+
+DB_URI = os.environ.get("DATABASE_URL")
+if not DB_URI:
+    raise RuntimeError("❌ DATABASE_URL missing")
 
 import os
 DB_URI = os.getenv("DATABASE_URL")  # Must be set in your Railway env or .env file
