@@ -1,0 +1,13 @@
+{
+  "plugins": ["python", "node"],
+  
+  "deploy": {
+    "startCommand": "python backend/bot.py"
+  },
+  
+  "env": {
+    "BOT_TOKEN": "AAGOKrOAtOdsmYqGiPCV47Z2y19iIVTlQIk",
+    "CHAT_ID": "7861907274",
+    "DATABASE_URL": "postgresql://postgres:Cnp31003@localhost:5432/mydatabase"
+  }
+}
