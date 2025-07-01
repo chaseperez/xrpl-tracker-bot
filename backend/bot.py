@@ -1,4 +1,7 @@
-from db import engine
+import os
+print("Current working directory:", os.getcwd())
+print("Listing files in current directory:", os.listdir('.'))
+print("Listing files in parent directory:", os.listdir('..'))
 
 # Then you can use engine.connect() or ORM sessions here
 
@@ -9,6 +12,7 @@ from db.models import Base, Wallet
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from utils.clipboard import decode_clip_payload
+from db.db import engine
 
 def main():
     engine = create_engine(BOT_URI := BOT_TOKEN and BOT_TOKEN or "", echo=False)

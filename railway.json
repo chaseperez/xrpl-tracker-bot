@@ -1,10 +1,8 @@
 {
-  "plugins": ["python", "node"],
-  
+  "plugins": ["python"],
   "deploy": {
     "startCommand": "python backend/bot.py"
   },
-  
   "env": {
     "BOT_TOKEN": "AAGOKrOAtOdsmYqGiPCV47Z2y19iIVTlQIk",
     "CHAT_ID": "7861907274",
