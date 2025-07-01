@@ -4,7 +4,7 @@ from db.models import Wallet
 from services.xrpl_service import get_account_tx
 from services.dex_screener import get_token_info
 from services.firstledger import lookup_account
-from utils.formatters import  fmt_transaction  # <- whatever you're using
+from utils.fmt import  fmt_transaction  # <- whatever you're using
 from telegram import ParseMode
 
 def check_wallets(context: CallbackContext):

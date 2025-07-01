@@ -1,44 +1,48 @@
-import os
-print("Current working directory:", os.getcwd())
-print("Listing files in current directory:", os.listdir('.'))
-print("Listing files in parent directory:", os.listdir('..'))
 
-# Then you can use engine.connect() or ORM sessions here
-
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, JobQueue
-from config import BOT_TOKEN
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+    JobQueue
+)
+from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DB_URI
 from handlers import commands, tracker
-from db.models import Base, Wallet
+from db.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from utils.clipboard import decode_clip_payload
-from db.db import engine
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+# Send one-time startup message
+def send_startup_message():
+    bot = Bot(token=TELEGRAM_BOT_TOKEN)
+    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="🚀 Bot started and running!")
 
 def main():
-    engine = create_engine(BOT_URI := BOT_TOKEN and BOT_TOKEN or "", echo=False)
-    Session = sessionmaker(bind=create_engine(BOT_URI := BOT_TOKEN and "", echo=False))
-    engine = create_engine(BOT_URI := "", echo=False)  # fix DB_URI usage
-    from config import DB_URI
-    engine = create_engine(DB_URI)
+    engine = create_engine(DB_URI, echo=False)
+    Session = sessionmaker(bind=engine)
     Base.metadata.create_all(engine)
     session = Session()
 
-    updater = Updater(token=BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
-    dp.bot_data["db"] = session
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-    dp.add_handler(CommandHandler("start", commands.start))
-    dp.add_handler(CommandHandler("track", commands.track))
-    dp.add_handler(CommandHandler("untrack", commands.untrack))
-    dp.add_handler(CommandHandler("list", commands.list_wallets))
-    dp.add_handler(CallbackQueryHandler(on_clip := lambda update, _: update.callback_query.answer(decode_clip_payload(update.callback_query.data))))
+    app.bot_data["db"] = session
 
-    jq: JobQueue = updater.job_queue
-    jq.run_repeating(tracker.check_wallets, interval=60, first=10)
+    app.add_handler(CommandHandler("start", commands.start))
+    app.add_handler(CommandHandler("track", commands.track))
+    app.add_handler(CommandHandler("untrack", commands.untrack))
+    app.add_handler(CommandHandler("list", commands.list_wallets))
+    app.add_handler(CallbackQueryHandler(lambda update, context: update.callback_query.answer(
+        decode_clip_payload(update.callback_query.data)
+    )))
 
-    updater.start_polling()
-    updater.idle()
+    job_queue = app.job_queue
+    job_queue.run_repeating(tracker.check_wallets, interval=60, first=10)
 
-if __name__ == "__main__":
-    main()
-
+    logging.info("🚀 Starting bot polling...")
+    send_startup_message()
+    app.run_polling()

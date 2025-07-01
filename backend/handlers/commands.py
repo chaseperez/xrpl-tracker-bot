@@ -1,9 +1,25 @@
+from telegram.ext import CommandHandler
+
+async def start(update, context):
+    await update.message.reply_text("Welcome! Bot is connected.")
+
+# Export a list of handlers you want to register
+handlers = [
+    CommandHandler("start", start),
+    # Add more handlers here...
+]
+
+
+
+
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
 from db.models import Wallet
 from sqlalchemy.orm import Session
-from utils import formatters
-from utils import fmt_wallet_list
+from utils import fmt_wallet_list, fmt_transaction
+
+
 
 
 
@@ -42,3 +58,8 @@ def list_wallets(update: Update, context: CallbackContext):
     chat_id = str(update.effective_chat.id)
     wallets = session.query(Wallet).filter_by(chat_id=chat_id).all()
     update.message.reply_text(fmt_wallet_list(wallets), parse_mode="Markdown")
+
+
+async def start(update, context):
+    print(f"Received /start from user {update.effective_user.id}")
+    await update.message.reply_text("Hello! Bot started.")
