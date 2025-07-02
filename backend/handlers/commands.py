@@ -1,15 +1,14 @@
-from telegram.ext import CommandHandler
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes
 
-async def start(update, context):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Welcome! Bot is connected.")
 
-# Export a list of handlers you want to register
+# Export a list of handlers to register
 handlers = [
     CommandHandler("start", start),
     # Add more handlers here...
 ]
-
-
 
 
 
