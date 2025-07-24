@@ -7,3 +7,4 @@ urllib3==1.26.16
 pymysql
 cryptography>=41.0.0
 xrpl-py
+psycopg2-binary==2.9.6
