@@ -1,27 +1,26 @@
-from os import getenv
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from db.models import Base  # Your declarative base and models
+from contextlib import contextmanager
 
-from os import getenv
-from sqlalchemy import create_engine
-
-
-
-#Delete code if no worky
-DATABASE_URL = getenv("DATABASE_URL")
-engine = create_engine(DATABASE_URL)
-#delete code late if doesnt work^^^^^
-
-
-# ✅ Get the DATABASE_URL from environment variables
-DATABASE_URL = getenv("DATABASE_URL")
-
-# ❗ Throw an error if it's not set (optional safety check)
+DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL environment variable is not set!")
+    raise RuntimeError("❌ DATABASE_URL environment variable is not set!")
 
-# ✅ Create the engine
-engine = create_engine(DATABASE_URL, echo=False)
+engine = create_engine(DATABASE_URL, echo=False, future=True)
+Base.metadata.create_all(engine)
 
-# ✅ (Optional) Create a sessionmaker
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+@contextmanager
+def get_db_session():
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()

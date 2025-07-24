@@ -1,92 +1,119 @@
-from config import BOT_TOKEN, CHAT_ID, DB_URI
-from handlers import commands, tracker
-from db.models import Base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from utils.clipboard import decode_clip_payload
+# XRPL Wallet Tracker Bot — Refactored and Fixed Version
 
-from telegram import Bot
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    CallbackQueryHandler,
-)
+import pymysql
+pymysql.install_as_MySQLdb()
 
-from flask import Flask
+import asyncio
 import logging
-import threading
 import os
+import threading
+from dotenv import load_dotenv
+from flask import Flask
+
+# Load .env only locally
+if not os.getenv("RAILWAY_ENVIRONMENT"):
+    load_dotenv()
+
+# Required config
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+DB_URI = os.getenv("DATABASE_URL") or os.getenv("DB_URI")
+
+# Validate config
+if not BOT_TOKEN or not CHAT_ID or not DB_URI:
+    raise RuntimeError("❌ BOT_TOKEN, CHAT_ID, or DB_URI is missing from environment variables.")
 
 # --- Logging ---
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-# --- Flask App (for Railway) ---
+# --- Flask Health Check ---
 app = Flask(__name__)
 
 @app.route("/")
-def home():
-    return "✅ XRPL Tracker Bot is Running on Railway"
+def health():
+    return "✅ Bot is alive", 200
 
-# --- Async Telegram Command Handlers ---
-async def start(update, context):
-    await update.message.reply_text("🚀 Bot started and connected!")
+def run_flask():
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
 
-# --- Send a Startup Message to Telegram ---
-def send_startup_message():
+# --- Main Bot Logic ---
+async def send_startup_message():
+    from telegram import Bot
     try:
         bot = Bot(token=BOT_TOKEN)
-        bot.send_message(chat_id=CHAT_ID, text="🚀 Bot started and running!")
+        await bot.send_message(chat_id=CHAT_ID, text="🚀 Bot started and running!")
+        logger.info("✅ Startup message sent")
     except Exception as e:
-        logging.error(f"❌ Failed to send startup message: {e}")
+        logger.error(f"❌ Failed to send startup message: {e}")
 
-# --- Telegram Bot Setup ---
-def run_bot():
-    try:
-        # Database setup
-        engine = create_engine(DB_URI, echo=False)
-        Session = sessionmaker(bind=engine)
-        Base.metadata.create_all(engine)
-        session = Session()
+async def run_bot():
+    from telegram.ext import (
+        ApplicationBuilder, CallbackQueryHandler, CommandHandler,
+        MessageHandler, filters, ContextTypes
+    )
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from db.models import Base
+    from handlers import commands, tracker
+    from utils.clipboard import decode_clip_payload
+    from telegram import Update
 
-        # Initialize bot
-        app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
-        app_bot.bot_data["db"] = session
+    logger.info("🔧 Connecting to database...")
+    engine = create_engine(DB_URI, echo=False)
+    SessionLocal = sessionmaker(bind=engine)
+    Base.metadata.create_all(engine)
 
-        # Add command handlers
-        app_bot.add_handler(CommandHandler("start", start))
-        app_bot.add_handler(CommandHandler("track", commands.track))
-        app_bot.add_handler(CommandHandler("untrack", commands.untrack))
-        app_bot.add_handler(CommandHandler("list", commands.list_wallets))
+    logger.info("🤖 Initializing Telegram bot...")
+    app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
+    app_bot.bot_data["SessionLocal"] = SessionLocal
 
-        # Add inline button handler
-        app_bot.add_handler(CallbackQueryHandler(
-            lambda update, context: update.callback_query.answer(
-                decode_clip_payload(update.callback_query.data)
-            )
-        ))
+    # Register command handlers
+    for handler in commands.handlers:
+        app_bot.add_handler(handler)
+    logger.info(f"✅ Registered {len(commands.handlers)} command handlers")
 
-        # Add periodic wallet checker job
-        app_bot.job_queue.run_repeating(
-            tracker.check_wallets,
-            interval=60,
-            first=10,
-            context={"chat_id": CHAT_ID}
+    # Add debug logger
+    async def debug_logger(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        logger.debug(f"📥 Message received: {update.message.text}")
+    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, debug_logger))
+
+    # Inline button handler
+    app_bot.add_handler(CallbackQueryHandler(
+        lambda update, context: update.callback_query.answer(
+            decode_clip_payload(update.callback_query.data)
         )
+    ))
 
-        logging.info("🤖 Telegram bot polling started...")
-        send_startup_message()
-        app_bot.run_polling()
+    # Job to check wallets
+    app_bot.job_queue.run_repeating(
+        tracker.check_wallets,
+        interval=60,
+        first=10,
+        name="check_wallets_job",
+        data={"chat_id": CHAT_ID}
+    )
+    logger.info("🕒 Scheduled job: check_wallets every 60s")
 
-    except Exception as e:
-        logging.error(f"❌ Error starting Telegram bot: {e}")
+    # Global error handler
+    app_bot.add_error_handler(commands.error_handler)
 
-# --- Main Entrypoint ---
+    await send_startup_message()
+    logger.info("🤖 Telegram bot polling started...")
+    await app_bot.run_polling()
+
+# --- Entry Point ---
+async def main():
+    logger.info("🚀 Starting XRPL Tracker Bot...")
+
+    # Start Flask health server in background
+    threading.Thread(target=run_flask, daemon=True).start()
+
+    # Run bot
+    await run_bot()
+
 if __name__ == "__main__":
-    # Start bot in separate thread
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.start()
-
-    # Run Flask server for Railway ping
-    port = int(os.environ.get("PORT", 8000))  # Railway auto-sets $PORT
-    logging.info(f"🌐 Flask server starting on port {port}...")
-    app.run(host="0.0.0.0", port=port)
+    asyncio.run(main())

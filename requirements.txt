@@ -1,7 +1,9 @@
 python-telegram-bot==20.7
-requests
-flask
-sqlalchemy
-python-dotenv
+requests==2.31.0
+flask==2.3.2
+sqlalchemy==2.0.20
+python-dotenv==1.0.0
 urllib3==1.26.16
-psycopg2-binary
+pymysql
+cryptography>=41.0.0
+xrpl==2.3.0
