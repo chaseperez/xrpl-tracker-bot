@@ -6,4 +6,4 @@ python-dotenv==1.0.0
 urllib3==1.26.16
 pymysql
 cryptography>=41.0.0
-xrpl==2.3.0
+xrpl==1.11.0
